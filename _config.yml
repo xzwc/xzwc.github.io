@@ -12,11 +12,11 @@ baseurl: ""                                # for example, '/blog' if your blog h
 
 # SNS settings
 RSS: false
-weibo_username:     huxpro
-zhihu_username:     huxpro
-github_username:    huxpro
-#twitter_username:  huxpro
-facebook_username:  huxpro
+weibo_username:     2652356325
+zhihu_username:     zhang-ye-4-9
+github_username:    xzwc
+#twitter_username:  zhy
+facebook_username:  100008378567444
 # linkedin_username:  firstname-lastname-idxxxx
 
 
@@ -70,7 +70,7 @@ ga_domain: blog.iliyun.net
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
 sidebar-about-description: "写写代码，拍拍照片，看看产品。世界那么大，我想去看看。"
-sidebar-avatar: /img/avatar-hux.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-avatar: /img/avater-zhang.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 
@@ -84,9 +84,12 @@ featured-condition-size: 1              # A tag will be featured if the size of 
 friends: [
     {
         title: "ChiChou",
-        href: "http://su.gallery/"
+        href: "http://chichou.me/"
     },{
-        title: "乱序",
-        href: "http://mida.re/"
+        title: "Hongyang",
+        href: "http://blog.csdn.net/lmj623565791"
+    },{
+        title: "guolin",
+        href: "http://blog.csdn.net/guolin_blog"
     }
 ]
