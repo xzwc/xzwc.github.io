@@ -10,7 +10,7 @@ tags:
     - Android
 ---
 
-> “喜欢，是一切付出的前提。只有真心的喜欢了，你才会去投入，才不会抱怨这些投入，无论是时间、精力还是感情。 ”
+> “喜欢，是一切付出的前提。只有真心地喜欢了，你才会去投入，才不会抱怨这些投入，无论是时间、精力还是感情。 ”
 
 
 
@@ -77,9 +77,8 @@ tags:
     }
 ```
 先介绍一下importance的值  
-
 IMPORTANCE_BACKGROUND = 400//后台  
-IMPORTANCE_EMPTY = 500//空进程
+IMPORTANCE_EMPTY = 500//空进程  
 MPORTANCE_FOREGROUND = 100//在屏幕最前端，可获取焦点   
 IMPORTANCE_SERVICE = 300//在服务中  
 IMPORTANCE_VISIBLE = 200//在屏幕前端、获取不到焦点
@@ -139,6 +138,8 @@ IMPORTANCE_VISIBLE = 200//在屏幕前端、获取不到焦点
     }
 ```
 
+具体的下文会解释。
+
 ###方法四
 通过UsageStatsManager判断
 
@@ -168,9 +169,8 @@ public boolean isRunningForeground5() {
     }
 ```
 
-原理：获取一个时间段内的应用统计信息    
-这个方法只在android5.0以上生效，且需要加入“android.permission.PACKAGE_USAGE_STATS”权限,会出现警告说这个权限只应该是系统应用使用，同时，应用也要判断用是否已经获取到UsageState的权限,所以此方法也不行。
-
+原理：获取一个时间段内的应用统计信息。     
+这个方法只在android5.0以上生效，且需要加入“android.permission.PACKAGE_USAGE_STATS”权限,会出现警告说这个权限只应该是系统应用使用，同时，应用也要判断用是否已经获取到UsageState的权限,所以此方法也不行。  
 注意：必须去安全->高级->有权查看使用情况的应用中选中应用
 
 
@@ -223,7 +223,7 @@ void onActivityDestroyed(Activity activity);
 ## 后记
  
 由于国内的android生态过于混乱，各种定制系统，对于android开发者来说真是苦不堪言。同样的代码在不同的机型上会出现不同的结果，甚至在有的机型上会ANR,当然大多数情况是NullPointerException,其次UI显示效果不一样，大多数是你采用了系统的而没有自己定制,再接着,出来几个奇葩分辨率的平板通话手机,测试测出来了，你还得乖乖去适配。  
-与此同时，随着androdi权限的收紧，我们开发时要避开已经被废弃的方法,不然可能的后果你懂的。  
+与此同时，随着android权限的收紧，我们开发时要避开已经被废弃的方法,不然可能的后果你懂的。  
 
 打个广告：以后我所有的文章将会同步在[我的博客](http://xzwc.github.io)和[简书](http://www.jianshu.com/users/3a653a795acf/latest_articles)和[CSDN](http://blog.csdn.net/zhyxuexijava/article/)。
 
