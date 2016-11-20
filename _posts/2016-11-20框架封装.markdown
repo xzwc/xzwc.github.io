@@ -1,0 +1,431 @@
+---
+layout:     post
+title:      "RxJava+MVP+Retrofit+Dagger2+Okhttp大杂烩"
+subtitle:   " \"一路走来\""
+date:       2016-11-20 21:10:00
+author:     "ZHY"
+header-img: "img/post-app前台那点事-2016.jpg"
+catalog: true
+tags:
+    - Android
+    - 网络框架
+    - 解耦
+---
+
+> "你并不满足逡巡在我的海洋,渴望占据我一片高地,可我飘着白云的高地，还筑着城墙。--kurny ”
+
+
+这几年来android的网络请求技术层出不穷，网络请求从最初的HttpClient,HttpURLConnection到Volley,OkHttp,Retrofit。但是如果直接使用，每个网络请求都会重复很多相同的代码，这显然不是一个老司机需要的。接下来我们就讲讲网络请求封装那点事。  
+
+主要利用以下技术点  
+- **Retrofit 2 [Retrofit官网](https://square.github.io/retrofit/)**  
+- **OkHttp [OkHttp官网](http://square.github.io/okhttp/)**     
+- **RxJava [RxJava官网](https://github.com/ReactiveX/RxJava)**  
+- **Dagger2 [Dagger2](https://google.github.io/dagger/)**  
+- **MVP开发模式[参考谷歌官方的MVP项目](https://github.com/googlesamples/android-architecture/tree/todo-mvp)**
+
+下面来介绍一下知识点由于篇幅限制，只简单介绍一下相关概念）并且讲解一下如何封装我们日常用的网络请求框架。
+
+1.Retrofit2入门其实相当简单，官网上给了最基础的用法，相信大家看一遍就会用了。这里介绍下Retrofit2和Okhttp的关系，以及retrofit的面向接口的设计。
+
+```
+    Retrofit.Builder builder = new Retrofit.Builder();
+        builder.client(okHttpClient)
+                .baseUrl(ApiService.SERVER_URL)
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+ ``` 
+ 
+ Retrofit2实际上是对Okhttp做了一层封装，把网络请求都交给给了Okhttp，我们只需要通过简单的配置就能使用retrofit来进行网络请求。
+ 
+ ```
+ public interface GitHubService {
+  @GET("users/{user}/repos")
+  Call<List<Repo>> listRepos(@Path("user") String user);
+}
+ 
+ GitHubService service = retrofit.create(GitHubService.class);
+
+ ```
+ 然后我们就可以愉快地 Call<List<Repo>> call = service.listRepos(user);接下来调用call.enqueue,产生两个回调函数onResponse和onFailure,我们在这里做相应的处理。
+ 
+ 这里我推荐[鸿洋的 Retrofit2 完全解析 探索与okhttp之间的关系](http://blog.csdn.net/lmj623565791/article/details/51304204)
+ 
+
+2.RxJava,一个在 Java VM 上使用可观测的序列来组成异步的、基于事件的程序的库。这个有点拗口,其实大家只要去理解订阅者观察者模式(Observables发出一系列事件，Subscribers处理这些事件),事件驱动，异步这几个概念,然后再去看RxJava的语法，多敲多练，很快就能上手。
+ 
+RxJava 的异步实现，是通过一种扩展的观察者模式来实现的。从纯Java的观点来看，RxJava Observable类源自于经典的观察者模式。
+它添加了三个缺少的功能：
+
+ - 生产者在没有更多数据可用时能够发出通知信号：onCompleted事件。
+ - 生产者在发生错误时能够发出通知信号：onError()事件。
+ - RxJava Observables能够组合而不是嵌套，从而避免开发者陷入回调的地狱。
+
+那么我们什么时候使用观察者模式（题外话）？
+
+ - 当你的架构有两个实体类，一个依赖另外一个，你想让它们互不影响或者是独立复用它们。
+ - 当一个变化的对象通知那些与它自身变化相关联的未知数量的对象时。
+ - 当一个变化的对象通知那些无需推断具体的对象是谁。
+
+RxJava的观察者模式：
+ Observable (被观察者)、 Observer (观察者)、 subscribe (订阅)。Observable 和 Observer 通过 subscribe() 方法实现订阅关系，从而 Observable 可以在需要的时候发出事件来通知 Observer。
+
+RxJava的回调方法主要有三个，onNext()，onError(),onCompleted()。
+ - onNext() 对于Subscribler我们可以理解为接收数据。
+ - onCompleted() 观测的事件的队列任务都完成了，当不再有onNext()发射数据时，onCompleted事件被触发。
+ - onError() 当事件异常时响应此方法，一旦此方法被触发，队列自动终止，不再发射任何数据。
+  （其实onCompleted()和onError()我们可以理解为网络请求框架中的onSuccess()和onError(),一个是服务器响应成功，一个是响应失败，这两个方法同时只有一个能够被执行，onCompleted()和onError()同理,onNext()可以理解为客户端接收数据，不同的是服务器必须一次性返回响应信息，而RxJava可以一个一个数据返回或者一次性返回整个列表之类的）
+
+这里我推荐[扔物线](https://gank.io/post/560e15be2dca930e00da1083)和[大头鬼的深入浅出RxJava序列](http://blog.csdn.net/lzyzsd/article/details/41833541)。
+
+3.Dagger2,它的大名字想必都知道，但是否都用过它那就另当别论了。它是一个依赖注入框架,又叫控制反转（IOC）,方便我们在大型项目上解耦,各层对象的调用完全面向接口,更好地写出单元测试,有利于我们对大型项目的维护。   
+以前在我们的项目中，引用其它类中中的方法，我们肯定是A a = new A();a.doSomething();如果这样的话我们在写单元测试的时候还要保证A实例有没有初始化成功,同时代码中也耦合了A这个类。引入Dagger2后，我们有Inject这个方法负责把A类注入到某个Activity中。同时我们也要理解这里面的@Commponent（负责连接某个类和Activity的连接），@Module（生产各个要注入的实例）,@Provides（对外提供实例方法的注解）,@Scope and @Singleton（划分作用域的，标记当前对象使用范围）这些概念，这些在下面的框架的封装中都会提现出来,希望大家不要从入门到放弃。
+这里我推荐[泡在网上的日子详解Dagger2](http://www.jcodecraeer.com/a/anzhuokaifa/androidkaifa/2015/0519/2892.html)
+
+4.MVP模式：相信大家很多都是MVC模式过来的，那时我们的在Fragment和Activity中，不仅负责了View试图层，还在里面写了一堆业务逻辑，网络请求数据，一个复杂的类里面上千行代码，再加上一些别人写的一些不优雅的代码，我的天呐，根本没法写单元测试，谁维护谁头疼，总有一种想推翻重写的想法,但那是不现实的，于是MVP模式应运而生,具体大家参考[谷歌的官方demo](https://github.com/googlesamples/android-architecture/tree/todo-mvp),看一遍就都明白了，比我三言两语讲的清楚。
+
+上面废话太多，下面来进入封装阶段。
+
+
+---------------------------------------  
+先来看一下项目结构：
+  
+   ![Alt text](http://ww3.sinaimg.cn/large/9e17bee5gw1f9yw8xvk8bj20l20r0n1t.jpg =500x700)   
+   项目结构看起来还是很清晰的,data包下面的local和remote分别是处理本地存储和远程获取数据的,PreferenceManger也可以负责数据持久化处理，di包下面的主要负责对okhttp的拦截处理以及生产响应的okhttp模块（主要是应用dagger2）。
+   下面关于如何封装我们来说个5毛钱的。  
+   1.初始化retrofit,添加对RxJava的适配  
+  
+   ```
+   @Provides
+    @Singleton
+    public Retrofit provideRestAdapter(OkHttpClient okHttpClient) {
+        Retrofit.Builder builder = new Retrofit.Builder();
+        builder.client(okHttpClient)
+                .baseUrl(ApiService.SERVER_URL)
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create());
+        return builder.build();
+    }
+   ```  
+   2.Service接口的处理
+  
+   ```
+   public interface ApiService {
+    String SERVER_URL = "http://127.0.0.1:3000/";
+        
+    @FormUrlEncoded
+    @POST("/api/v1/authproject/login")
+    Observable<BaseResponse<User>> login(@Field("phone") String username, @Field("password") String password);
+
+    @FormUrlEncoded
+    @POST("/api/v1/authproject/{id}/modify_activity")
+    Observable<BaseResponse<CommonInfo>> modifyActivity(@Path("id")String id,@Field("user_id") String user_id, @Field("access_token") String access_token);
+
+    @GET("/api/v1/authproject/{id}")
+    Observable<BaseResponse<ActivityInfo>> getActivityInfo(@Path("id")String id,String user_id,@Query("access_token") String access_token);
+
+}
+
+   ```
+   这个可以具体参考retrofit的官方文档
+   
+  3.回调函数
+  
+   ```
+   public interface SimpleCallback<T> {
+    void onStart();
+    void onNext(T t);
+    void onComplete();
+}
+
+
+   ```
+   onStart主要是发起请求时，onNext（）是请求有结果之前，onComplete()是请求完成。
+   
+   
+   4.数据统一请求分发
+    
+   
+    public class BaseResponseFunc<T> implements Func1<BaseResponse<T>, Observable<T>> {
+
+
+    @Override
+    public Observable<T> call(BaseResponse<T> tBaseResponse) {
+        //遇到非200错误统一处理,将BaseResponse转换成您想要的对象
+        if (tBaseResponse.getStatus_code() != 200) {
+            return Observable.error(new Throwable(tBaseResponse.getStatus_msg()));
+        }else{
+            return Observable.just(tBaseResponse.getData());
+        }
+    }
+}
+
+  
+   5.json数据统一返回格式
+   
+   ```
+   public class BaseResponse<T> {
+
+    private int status_code;
+    private String status_msg;
+    private T data;
+
+
+    public int getStatus_code() {
+        return status_code;
+    }
+
+    public void setStatus_code(int status_code) {
+        this.status_code = status_code;
+    }
+
+    public String getStatus_msg() {
+        return status_msg;
+    }
+
+    public void setStatus_msg(String status_msg) {
+        this.status_msg = status_msg;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
+    }
+}
+   ```
+   6.自定义dialog,错误提示，取消网络请求，回调结果由ExceptionSubscriber统一处理
+   
+   ```
+  public class ExceptionSubscriber<T> extends Subscriber<T> implements ProgressCancelListener{
+
+    private SimpleCallback<T> simpleCallback;
+    private Application application;
+
+    private ProgressDialogHandler mProgressDialogHandler;
+
+    private Context context;
+
+    private Boolean isShow = true;
+
+
+    public ExceptionSubscriber(SimpleCallback simpleCallback, Application application, Context context, Boolean isShow) {
+        this.simpleCallback = simpleCallback;
+        this.application = application;
+        this.context = context;
+
+        mProgressDialogHandler = new ProgressDialogHandler(context
+                , this, true);
+        this.isShow = isShow;
+    }
+
+    public ExceptionSubscriber(SimpleCallback simpleCallback, Application application, Context context) {
+        this.simpleCallback = simpleCallback;
+        this.application = application;
+        this.context = context;
+
+        mProgressDialogHandler = new ProgressDialogHandler(context
+                , this, true);
+    }
+
+
+    private void showProgressDialog() {
+        if (mProgressDialogHandler != null) {
+            mProgressDialogHandler.obtainMessage(ProgressDialogHandler.SHOW_PROGRESS_DIALOG).sendToTarget();
+        }
+    }
+
+    private void dismissProgressDialog() {
+        if (mProgressDialogHandler != null) {
+            mProgressDialogHandler.obtainMessage(ProgressDialogHandler.DISMISS_PROGRESS_DIALOG).sendToTarget();
+            mProgressDialogHandler = null;
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (simpleCallback != null)
+            simpleCallback.onStart();
+        if (isShow)
+            showProgressDialog();
+    }
+
+    @Override
+    public void onCompleted() {
+        if (simpleCallback != null)
+            simpleCallback.onComplete();
+        dismissProgressDialog();
+
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        try {
+            System.out.println("-------"+e.getMessage());
+            e.printStackTrace();
+            if (e instanceof SocketTimeoutException) {
+                Toast.makeText(application, "网络中断，请检查您的网络状态", Toast.LENGTH_SHORT).show();
+            } else if (e instanceof ConnectException) {
+                Toast.makeText(application, "网络中断，请检查您的网络状态", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(application, "" + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+            if (simpleCallback != null)
+                simpleCallback.onComplete();
+            dismissProgressDialog();
+        } catch (Throwable el) {
+            dismissProgressDialog();
+            el.printStackTrace();
+        }
+
+
+    }
+
+    @Override
+    public void onNext(T t) {
+        if (simpleCallback != null)
+            simpleCallback.onNext(t);
+    }
+
+    @Override
+    public void onCancelProgress() {
+        if (!this.isUnsubscribed()) {
+            this.unsubscribe();
+        }
+    }
+}
+
+  
+   ```
+   在Subscriber的四个回调函数中，onStart中实现加载框，onError中实现统一的错误处理，onNext中传出一个泛型的对象做后续处理，onComplete完成网络请求。
+   
+   7.拦截器的处理  
+  
+   ```
+    public OkHttpClient provideOkHttpClient() {
+        final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+        builder.addInterceptor(new Interceptor() {
+            @Override
+            public Response intercept(Chain chain) throws IOException {
+                Request request = chain.request();
+                Request.Builder requestBuilder = request.newBuilder();
+                Request newRequest = null;
+                if (request.body() instanceof FormBody) {
+                    FormBody.Builder newFormBody = new FormBody.Builder();
+                    FormBody oidFormBody = (FormBody) request.body();
+                    for (int i = 0; i < oidFormBody.size(); i++) {
+                        newFormBody.addEncoded(oidFormBody.encodedName(i), oidFormBody.encodedValue(i));
+                    }
+                    String url = request.url().encodedPath();
+                    newFormBody.addEncoded("timestamp", CommonUtils.getTimestamp());
+                    newFormBody.addEncoded("signature", SecerityUtils.getUnsignedContent(newFormBody));
+                    requestBuilder.method(request.method(), newFormBody.build());
+                } else {//GET请求
+                    String url = String.valueOf(request.url());
+                    int index1 = url.indexOf("?");
+                    int index2 = url.indexOf("=");
+                    if (index1 != -1 && index2 != -1) {
+                        requestBuilder.url(request.url() + "&signature="+SecerityUtils.getUnsignedContent(String.valueOf(request.url()), CommonUtils.getTimestamp())+"&timestamp=" + CommonUtils.getTimestamp());
+                    } else {
+                        requestBuilder.url(request.url() + "?signature="+SecerityUtils.getUnsignedContent(String.valueOf(request.url()), CommonUtils.getTimestamp())+ "&timestamp=" + CommonUtils.getTimestamp());
+                    }
+                }
+                newRequest = requestBuilder.build();
+                return chain.proceed(newRequest);
+            }
+        });
+
+
+       if (BuildConfig.DEBUG) {
+        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
+        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
+        builder.addInterceptor(logging);
+          }
+
+        builder.connectTimeout(60 * 1000, TimeUnit.MILLISECONDS)
+                .readTimeout(60 * 1000, TimeUnit.MILLISECONDS);
+
+
+        return builder.build();
+    }
+
+   ```
+   为了不需要每一个请求都添加时间戳和signature,需要对所有的请求统一添加,上面的例子是之前一个项目中用到的get请求和post请求。对于post请求，我们拦截body参数，对于get请求，我们截取？后面的参数。然后生成相应的签名。这样大大方便了我们对统一参数的管理。
+   
+   8.发起http请求
+   
+   ```
+      public void login(final String username, final String password) {
+        apiManager.login((Activity) loginView, username, password, new SimpleCallback<User>() {
+            @Override
+            public void onStart() {
+
+            }
+
+            @Override
+            public void onNext(User user) {
+                loginView.loginSuccess();
+            }
+
+            @Override
+            public void onComplete() {
+          
+            }
+        },true);
+    }
+   ```
+
+通过对应的回调函数反馈到activity或者fragment中来处理相关的UI。
+
+9.对于相应的module，我们都可以通过注解到响应的类中，只需要在这里添加对应的Component
+
+```
+@Singleton
+@Component(modules = {AppModule.class, ApiModule.class})
+public interface AppComponent {
+    LoginComponent plus(LoginModule loginModule);
+}
+
+```
+然后在Activity或者fragment中提供响应的注入即可。
+
+```
+  @Override
+    public void setupActivityComponent() {
+        AuthApplication.get(this).getAppComponent().plus(new LoginModule(this)).inject(this);
+
+    }
+```
+
+#####总结：通过dagger2,我们可以轻松地将其它模块注入到我们所需要的类中，然后对网络请求统一的参数处理，返回结果的统一处理，可以很方便的处理我们的网络请求。
+---------------------------------------    
+
+
+##后记  
+
+通过这个框架，我们可以进行基础的网络请求，get,post，put，delete等基础的网络请求，对网络请求错误和没有网络的情况做了统一的抛出处理，对加载对话框（菊花）也做了统一的封装，可以很好的自定义加载对话框和控制网络请求是否加载对话框,数据持久化。与此同时，可以对网络请求对统一的拦截处理，方便我们添加统一的请求参数，比如token,时间戳，签名等。
+由于项目中我们采用阿里云的OSS的上传方案，以及最近经常加班，时间有限，框架还存在着很多不完善的地方，比如对cookie的处理，上传，下载的处理，失败后的retry等等，后续会继续完善。
+
+由于本项目涉及到的知识点比较多，看起来比较凌乱,忘谅解,上面说的很多都是学习中的体会,希望大家慢慢体会，当你们亲身经历后读起来就很easy了。
+
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
