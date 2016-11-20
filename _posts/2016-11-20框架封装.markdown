@@ -391,7 +391,7 @@ public interface AppComponent {
 }
 
 ```
-然后在Activity或者fragment中提供响应的注入即可。
+然后在Activity或者fragment中提供相应的注入即可。
 
 ```
   @Override
