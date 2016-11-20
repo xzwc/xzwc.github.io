@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:      "RxJava+MVP+Retrofit+Dagger2+Okhttp大杂烩"
+title:      "android网络框架封装"
 subtitle:   " \"一路走来\""
 date:       2016-11-20 21:10:00
 author:     "ZHY"
